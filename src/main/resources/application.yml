@@ -1,0 +1,51 @@
+spring:
+  application:
+    name: payment-fraud-detection
+
+  profiles:
+    active: dev
+
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    time-zone: UTC
+
+# Queue and Worker config
+queue:
+  capacity: 10000
+
+worker:
+  pool:
+    size: 4
+
+# Fraud detection thresholds
+fraud:
+  block:
+    score-threshold: 70.0
+
+  review:
+    score-threshold: 40.0
+
+  rules:
+    high-amount:
+      threshold: 10000
+      critical-threshold: 50000
+
+    rapid-transaction:
+      window-minutes: 5
+      max-count: 3
+      critical-count: 10
+
+    velocity:
+      daily-limit: 20000
+      hourly-limit: 5000
+
+  graph:
+    rebuild-interval-ms: 300000
+
+# App metadata
+info:
+  app:
+    name: Payment Fraud Detection System
+    version: 1.0.0
+    description: Real-time fraud detection with rule-based and graph-based analysis

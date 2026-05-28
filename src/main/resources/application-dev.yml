@@ -1,0 +1,65 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:frauddb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+
+    hibernate:
+      ddl-auto: create-drop
+
+    show-sql: false
+
+    properties:
+      hibernate:
+        format_sql: true
+        default_batch_fetch_size: 50
+
+# JWT - For development only, use a secure key and proper expiration in production
+jwt:
+  secret: dev-secret-key-CHANGE-IN-PRODUCTION
+  expiration-seconds: 86400
+
+# Springdoc / Swagger
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+
+  swagger-ui:
+    path: /swagger-ui.html
+    try-it-out-enabled: true
+    operations-sorter: method
+
+# Actuator / Metrics
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,env
+
+  endpoint:
+    health:
+      show-details: always
+
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+  info:
+    env:
+      enabled: true
+
+logging:
+  level:
+    com.frauddetection: DEBUG
+    org.springframework.security: WARN
+    org.hibernate: WARN

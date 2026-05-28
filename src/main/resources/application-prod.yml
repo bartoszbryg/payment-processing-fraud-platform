@@ -1,0 +1,55 @@
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+
+    hibernate:
+      ddl-auto: validate
+
+    show-sql: false
+
+    properties:
+      hibernate:
+        format_sql: false
+        default_batch_fetch_size: 100
+
+  h2:
+    console:
+      enabled: false
+
+# JWT
+jwt:
+  secret: ${JWT_SECRET}
+  expiration-seconds: 86400
+
+# Swagger disabled in production
+springdoc:
+  swagger-ui:
+    enabled: false
+
+# Secure actuator exposure
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+
+  endpoint:
+    health:
+      show-details: never
+
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+logging:
+  level:
+    com.frauddetection: INFO
+    org.springframework.security: WARN
+    org.hibernate: ERROR
