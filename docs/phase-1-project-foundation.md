@@ -25,7 +25,7 @@ Get Spring Boot compiling and serving HTTP on port 8080. No business logic yet.
 
 ## Why Files Live Where They Do
 
-Maven enforces a **Standard Directory Layout** — these paths are not configurable, they are baked in.
+Maven enforces a **Standard Directory Layout** — the directory structure is defined by Maven conventions.
 
 - `src/main/java/` — all production Java source. The directory path after this **must match the package declaration** in the file. `package main.application;` → file must be at `main/application/Main.java`.
 - `src/main/resources/` — non-Java files (YAML, SQL, etc.). Maven copies these into `target/classes/`, which is on the classpath. Spring reads `application.yml` from the classpath, so it ends up there automatically.
