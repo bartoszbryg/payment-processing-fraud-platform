@@ -43,6 +43,11 @@ fraud:
   graph:
     rebuild-interval-ms: 300000
 
+# ML Fraud Scoring Microservice
+ml:
+  service:
+    enabled: true
+
 # App metadata
 info:
   app:

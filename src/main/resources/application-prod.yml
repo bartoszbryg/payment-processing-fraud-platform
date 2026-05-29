@@ -48,6 +48,12 @@ management:
       prometheus:
         enabled: true
 
+# ML Fraud Scoring Microservice
+ml:
+  service:
+    url: ${ML_SERVICE_URL}
+    enabled: ${ML_SERVICE_ENABLED:true}
+
 logging:
   level:
     com.frauddetection: INFO

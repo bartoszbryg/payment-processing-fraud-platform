@@ -58,6 +58,12 @@ management:
     env:
       enabled: true
 
+# ML Fraud Scoring Microservice
+ml:
+  service:
+    url: ${ML_SERVICE_URL:http://localhost:8000}
+    enabled: ${ML_SERVICE_ENABLED:true}
+
 logging:
   level:
     com.frauddetection: DEBUG
