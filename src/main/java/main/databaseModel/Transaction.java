@@ -23,7 +23,8 @@ import java.time.Instant;
     // Composite index covers the most common fraud-query pattern: user + time range
     @Index(name = "idx_txn_user_created", columnList = "user_id, created_at"),
     // Graph-based fraud rules (circular flow, high degree nodes) query P2P pairs
-    @Index(name = "idx_txn_p2p", columnList = "user_id, receiver_id")
+    @Index(name = "idx_txn_p2p", columnList = "user_id, receiver_id"),
+    @Index(name = "idx_txn_risk_level", columnList = "risk_level")
 })
 
 @Getter
@@ -99,7 +100,7 @@ public class Transaction {
     private Instant processedAt;
 
     // Map to transaction field inside FraudAlert
-    @OneToMany(mappedBy = "transaction", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "transaction", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @Builder.Default
     private List<FraudAlert> fraudAlerts = new ArrayList<>();
 

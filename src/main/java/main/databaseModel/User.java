@@ -15,7 +15,9 @@ import java.util.List;
 @Entity
 @Table (name="users", indexes = {
     @Index(name = "idx_users_email", columnList = "email", unique = true),
-    @Index(name = "idx_users_active_flagged", columnList = "is_active, is_flagged")
+    @Index(name = "idx_users_active_flagged", columnList = "is_active, is_flagged"),
+    @Index(name = "idx_users_flagged", columnList = "is_flagged"),
+    @Index(name = "idx_users_risk_score", columnList = "risk_score")
 })
 
 @Getter
@@ -35,7 +37,7 @@ public class User {
 
     @Email
     @NotBlank
-    @Column(nullable = false)
+    @Column(nullable = false, unique = true)
     private String email;
 
     @NotNull
@@ -67,7 +69,7 @@ public class User {
     private Instant createdAt;
 
     @UpdateTimestamp
-    @Column(name = "updated_at", updatable = true)
+    @Column(name = "updated_at")
     private Instant updatedAt;
 
     // Locking: Prevents lost-update when two threads modify balance/riskScore concurrently
