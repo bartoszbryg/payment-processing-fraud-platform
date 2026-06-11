@@ -21,12 +21,29 @@ import java.util.Optional;
 @Repository
 public interface TransactionRepository extends JpaRepository<Transaction, String> {
 
-    // User transaction history - hits idx_txn_user_id
+    // User transaction history (sent) - hits idx_txn_user_id
     Page<Transaction> findBySenderId(String senderId, Pageable pageable);
 
-    Page<Transaction> findByStatus(TransactionStatus status, Pageable pageable);
+    // User transaction history (received P2P) - hits idx_txn_receiver_id
+    Page<Transaction> findByReceiverId(String receiverId, Pageable pageable);
 
-    Page<Transaction> findByRiskLevel(RiskLevel riskLevel, Pageable pageable);
+    // Admin-only: returns ALL users' transactions filtered by status.
+    // Never call from a user-facing endpoint - use findBySenderIdAndStatus for that.
+    Page<Transaction> findAllByStatus(TransactionStatus status, Pageable pageable);
+
+    // Admin-only: returns ALL users' transactions filtered by risk level.
+    // Never call from a user-facing endpoint - use findBySenderIdAndRiskLevel for that.
+    Page<Transaction> findAllByRiskLevel(RiskLevel riskLevel, Pageable pageable);
+
+    // User-scoped status filter - safe for user-facing "my declined transactions" endpoint.
+    Page<Transaction> findBySenderIdAndStatus(String senderId, TransactionStatus status, Pageable pageable);
+
+    // User-scoped risk filter - safe for user-facing "my flagged transactions" endpoint.
+    Page<Transaction> findBySenderIdAndRiskLevel(String senderId, RiskLevel riskLevel, Pageable pageable);
+
+    // Ownership-enforcing single-transaction lookup - returns empty if the transaction
+    // exists but belongs to a different user, preventing one user from viewing another's details.
+    Optional<Transaction> findByIdAndSenderId(String id, String senderId);
 
     // Data-range slice (used for reports / export) - hits idx_txn_user_created composite index
     List<Transaction> findBySenderIdAndCreatedAtBetween(String senderId, Instant from, Instant to);

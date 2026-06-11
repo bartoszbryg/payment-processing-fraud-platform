@@ -66,4 +66,8 @@ public class FraudAlert {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
+    // Prevents lost-update when concurrent fraud rule engines update scoreContribution or resolved
+    @Version
+    private Long version;
+
 }

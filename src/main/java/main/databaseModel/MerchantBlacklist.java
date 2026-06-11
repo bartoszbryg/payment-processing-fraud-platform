@@ -44,4 +44,8 @@ public class MerchantBlacklist {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
+    // Prevents lost-update when concurrent admin operations modify or soft-delete the same entry
+    @Version
+    private Long version;
+
 }

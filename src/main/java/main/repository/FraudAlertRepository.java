@@ -24,10 +24,12 @@ public interface FraudAlertRepository extends JpaRepository<FraudAlert, String> 
     // Hits idx_alert_user_id (userId is denormalized directly on FraudAlert for fast lookup)
     Page<FraudAlert> findByUserId(String userId, Pageable pageable);
 
-    // Review queue: unresolved alerts
-    // Hits idx_alert_resolved_created composite index
-    Page<FraudAlert> findByResolved(boolean resolved, Pageable pageable);
+    // Admin-only: all unresolved alerts across every user - analyst review queue
+    // Never call from a user-facing endpoint - use findByUserIdAndResolved for that
+    Page<FraudAlert> findAllByResolved(boolean resolved, Pageable pageable);
 
+    // User-scoped: only this user's resolved/unresolved alerts
+    Page<FraudAlert> findByUserIdAndResolved(String userId, boolean resolved, Pageable pageable);
 
     // Rule-pattern analysis: "how often has rule X fired in the last hour/day?"
     // Hits idx_alert_rule_type

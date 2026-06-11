@@ -144,12 +144,12 @@ have the project configured.
 
 | Phase | What gets built |
 |---|---|
-| **0** | ← you are here. Architecture designed, no code yet |
-| **1** | `pom.xml` + entry point + YAML config (dev/prod split) |
-| **2** | Domain enums: `TransactionStatus`, `RiskLevel`, `FraudRuleType` |
-| **3** | JPA entities: `User`, `AppUser`, `Transaction`, `FraudAlert`, `MerchantBlacklist` |
-| **4** | Repositories + custom fraud queries (`@Query`) |
-| **5** | DTOs — request/response objects, never expose raw entities |
+| **0** | Architecture designed, no code yet |
+| **1** ✅ | `pom.xml` + entry point + YAML config (dev/prod split) |
+| **2** ✅ | Domain enums: `TransactionStatus`, `RiskLevel`, `FraudRuleType` |
+| **3** ✅ | JPA entities: `User`, `AppUser`, `Transaction`, `FraudAlert`, `MerchantBlacklist`, `UserSession` |
+| **4** ✅ | Repositories + custom fraud queries (`@Query`) |
+| **5** ✅ | DTOs — request/response objects, never expose raw entities |
 | **6** | Typed exceptions + `GlobalExceptionHandler` |
 | **7** | JWT security: token provider, filter, `UserDetailsService` |
 | **8** | Fraud engine: `FraudRule` interface, 5 rules, graph analysis, orchestrator |

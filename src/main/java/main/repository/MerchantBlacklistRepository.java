@@ -10,12 +10,13 @@ import java.util.Optional;
 @Repository
 public interface MerchantBlacklistRepository extends JpaRepository<MerchantBlacklist, String> {
     
-    // Called on every payment to check whether the merchant is blocked
-    // Returns a boolean, hits the unique index on merchant_name
+    // Called on every payment - only active entries block a transaction, solf-deleted ones are ignored
+    boolean existsByMerchantNameAndActiveTrue(String merchantName);
 
-    boolean existsByMerchantName(String merchantName);
+    // Admin lookup: fetch the active entry when an analyst wants to see the reason or who added it
+    Optional<MerchantBlacklist> findByMerchantNameAndActiveTrue(String merchantName);
 
-    // Admin lookup: fetch full entry when an analyst wants to see the reason or who added it
+    // Admin lookup: needed to show the full audit history including removed entries
     Optional<MerchantBlacklist> findByMerchantName(String merchantName);
     
 }

@@ -76,7 +76,7 @@ public class Transaction {
     private TransactionStatus status = TransactionStatus.PENDING;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "risk_level")
+    @Column(name = "risk_level", nullable = false)
     @Builder.Default
     private RiskLevel riskLevel = RiskLevel.LOW;
 
@@ -95,6 +95,10 @@ public class Transaction {
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
+
+    // Prevents lost-update when concurrent fraud rules update fraudScore or status
+    @Version
+    private Long version;
 
     @Column(name = "processed_at")
     private Instant processedAt;
