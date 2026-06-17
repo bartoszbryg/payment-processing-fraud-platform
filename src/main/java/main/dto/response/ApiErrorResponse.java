@@ -1,13 +1,13 @@
 package main.dto.response;
 
-import lombok.Builder;
-import lombok.Data;
-
 import java.time.Instant;
 import java.util.List;
 
+import lombok.Builder;
+import lombok.Data;
+
 /*
-    Uniform error envelope for every 4xx/5xx response.
+    JSON error body for every 4xx/5xx response.
     Avoids leaking stack traces or Spring's default whitelabel error page to clients.
  */
 @Data
