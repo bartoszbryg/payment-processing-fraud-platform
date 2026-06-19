@@ -25,7 +25,8 @@ spring:
 
 # JWT - For development only, use a secure key and proper expiration in production
 jwt:
-  secret: dev-secret-key-CHANGE-IN-PRODUCTION
+  # Base64-encoded 256-bit key (32 bytes). NEVER use this in production.
+  secret: ZGV2LWZyYXVkLWRldGVjdGlvbi1zZWNyZXQta2V5LTMyYg==
   expiration-seconds: 86400
 
 # Springdoc / Swagger

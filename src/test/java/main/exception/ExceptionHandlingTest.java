@@ -149,9 +149,9 @@ class ExceptionHandlingTest {
 
     @Test
     void resourceNotFoundException_factoryMessages() {
-        assertEquals("User not found: u1",          ResourceNotFoundException.forUser("u1").getMessage());
-        assertEquals("Transaction not found: t1",   ResourceNotFoundException.forTransaction("t1").getMessage());
-        assertEquals("Fraud alert not found: a1",   ResourceNotFoundException.forAlert("a1").getMessage());
+        assertEquals("User not found: u1", ResourceNotFoundException.forUser("u1").getMessage());
+        assertEquals("Transaction not found: t1", ResourceNotFoundException.forTransaction("t1").getMessage());
+        assertEquals("Fraud alert not found: a1", ResourceNotFoundException.forAlert("a1").getMessage());
     }
 
     @Test
