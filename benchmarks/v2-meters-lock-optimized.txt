@@ -1,0 +1,24 @@
+# v2 — Optimization round 1
+# Pre-registered Micrometer meters at construction (EnumMap + HashMap, O(1) hot-path lookup)
+# Switched BFS queue from LinkedList to ArrayDeque (cache-friendly contiguous memory)
+# Upgraded synchronization from ReentrantReadWriteLock to StampedLock
+# analyzeCluster still calls ConnectivityInspector on every invocation
+# Concurrent benchmarks added
+
+Benchmark                                                 Mode  Cnt        Score         Error  Units
+FraudEngineBenchmark.allRules                            thrpt   20     6831.904 ±    1102.441  ops/s
+FraudEngineBenchmark.noAlerts                            thrpt   20     7892.118 ±    1389.774  ops/s
+FraudEngineBenchmark.shortCircuit                        thrpt   20     8104.337 ±     622.019  ops/s
+FraudEngineBenchmark.singleCritical                      thrpt   20     8756.221 ±     893.114  ops/s
+GraphServiceBenchmark.concurrent_readWrite_circularFlow  thrpt   20   981204.337 ±  224819.002  ops/s
+GraphServiceBenchmark.concurrent_reads_circularFlow      thrpt   20  2341877.554 ±   89034.112  ops/s
+GraphServiceBenchmark.concurrent_reads_nodeDegree        thrpt   20   412334.881 ±   71209.443  ops/s
+GraphServiceBenchmark.addTransaction_merchant             avgt   20        3.114 ±       0.541  us/op
+GraphServiceBenchmark.addTransaction_p2p                  avgt   20        2.603 ±       0.391  us/op
+GraphServiceBenchmark.analyzeCircularFlow_hit             avgt   20        0.401 ±       0.047  us/op
+GraphServiceBenchmark.analyzeCircularFlow_miss            avgt   20        2.118 ±       0.201  us/op
+GraphServiceBenchmark.analyzeCluster_hit                  avgt   20       71.882 ±       7.334  us/op
+GraphServiceBenchmark.analyzeCluster_miss                 avgt   20       68.441 ±       6.918  us/op
+GraphServiceBenchmark.analyzeNodeDegree_hub               avgt   20        5.812 ±       0.674  us/op
+GraphServiceBenchmark.rebuildGraph_large                  avgt   20     1089.441 ±     118.223  us/op
+GraphServiceBenchmark.rebuildGraph_small                  avgt   20      132.114 ±      11.882  us/op

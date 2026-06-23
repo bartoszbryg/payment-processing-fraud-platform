@@ -1,4 +1,11 @@
-﻿Benchmark                                                 Mode  Cnt        Score         Error  Units
+# v3 — Current implementation
+# Pre-registered Micrometer meters (EnumMap + HashMap, O(1) hot-path lookup)
+# Precomputed volatile clusterSizes map — analyzeCluster is a single O(1) map read
+# ArrayDeque for BFS queue (cache-friendly contiguous memory)
+# StampedLock — write lock held only during pointer swap, not during graph construction
+# Merchant nodes excluded from cluster computation
+
+Benchmark                                                 Mode  Cnt        Score         Error  Units
 FraudEngineBenchmark.allRules                            thrpt   20     9741.408 ±    1859.252  ops/s
 FraudEngineBenchmark.noAlerts                            thrpt   20    11131.720 ±    2221.142  ops/s
 FraudEngineBenchmark.shortCircuit                        thrpt   20    11567.062 ±     441.441  ops/s

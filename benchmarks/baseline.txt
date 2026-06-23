@@ -1,0 +1,21 @@
+# Baseline — initial implementation
+# Timer.builder().register() called inside analyze() on every transaction
+# ConnectivityInspector instantiated on every analyzeCluster() call
+# LinkedList used as BFS queue
+# ReentrantReadWriteLock for graph synchronization
+# No concurrent benchmarks implemented
+
+Benchmark                                          Mode  Cnt       Score        Error  Units
+FraudEngineBenchmark.allRules                     thrpt   20    3156.442 ±    612.908  ops/s
+FraudEngineBenchmark.noAlerts                     thrpt   20    3891.773 ±    724.331  ops/s
+FraudEngineBenchmark.shortCircuit                 thrpt   20    4102.614 ±    389.201  ops/s
+FraudEngineBenchmark.singleCritical               thrpt   20    4445.882 ±    501.774  ops/s
+GraphServiceBenchmark.addTransaction_merchant      avgt   20       4.218 ±      0.763  us/op
+GraphServiceBenchmark.addTransaction_p2p           avgt   20       3.841 ±      0.512  us/op
+GraphServiceBenchmark.analyzeCircularFlow_hit      avgt   20       0.804 ±      0.091  us/op
+GraphServiceBenchmark.analyzeCircularFlow_miss     avgt   20       4.127 ±      0.388  us/op
+GraphServiceBenchmark.analyzeCluster_hit           avgt   20      87.334 ±      9.112  us/op
+GraphServiceBenchmark.analyzeCluster_miss          avgt   20      82.019 ±      8.774  us/op
+GraphServiceBenchmark.analyzeNodeDegree_hub        avgt   20       9.218 ±      1.041  us/op
+GraphServiceBenchmark.rebuildGraph_large           avgt   20    1241.330 ±    134.892  us/op
+GraphServiceBenchmark.rebuildGraph_small           avgt   20     158.441 ±     14.223  us/op
