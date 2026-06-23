@@ -22,6 +22,10 @@ worker:
 fraud:
   block:
     score-threshold: 70.0
+    # Set to 86 to skip graph/ML when CRITICAL is already confirmed (RiskLevel.CRITICAL starts at 86)
+    # Set to 70 to skip when the block decision is certain regardless of risk label
+    # Set to 100 to only skip when the score is already maxed out
+    short-circuit-score: 86.0
 
   review:
     score-threshold: 40.0
@@ -39,6 +43,11 @@ fraud:
     velocity:
       daily-limit: 20000
       hourly-limit: 5000
+
+    location:
+      # Configurable without code changes; override at runtime via env var:
+      # FRAUD_RULES_LOCATION_HIGH_RISK_COUNTRIES=KP,IR,SY
+      high-risk-countries: KP,IR,SY,CU,SD,MM,BY,RU
 
   graph:
     rebuild-interval-ms: 300000

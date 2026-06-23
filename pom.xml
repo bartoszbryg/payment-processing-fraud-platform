@@ -29,6 +29,7 @@
         <lombok.version>1.18.32</lombok.version>
         <resilience4j.version>2.2.0</resilience4j.version>
         <micrometer.version>1.12.4</micrometer.version>
+        <jmh.version>1.37</jmh.version>
     </properties>
 
     <dependencies>
@@ -99,6 +100,12 @@
             <version>${jgrapht.version}</version>
         </dependency>
 
+        <!-- Caffeine cache — TTL-backed cache for merchant blacklist -->
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+        </dependency>
+
         <!-- Resilience4j for circuit breaker -->
         <dependency>
             <groupId>io.github.resilience4j</groupId>
@@ -163,7 +170,54 @@
             <version>4.2.1</version>
             <scope>test</scope>
         </dependency>
+
+        <!-- JMH — micro-benchmark harness (benchmark profile only) -->
+        <dependency>
+            <groupId>org.openjdk.jmh</groupId>
+            <artifactId>jmh-core</artifactId>
+            <version>${jmh.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.openjdk.jmh</groupId>
+            <artifactId>jmh-generator-annprocess</artifactId>
+            <version>${jmh.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
+
+    <profiles>
+        <!--
+          Run benchmarks:
+            mvn test -Pbenchmark
+
+          Export results to JSON (for the table reporter):
+            mvn test -Pbenchmark -Djmh.rf=json -Djmh.rff=benchmark-results.json
+
+          Run a single benchmark class:
+            mvn test -Pbenchmark -Djmh.include=FraudEngineBenchmark
+        -->
+        <profile>
+            <id>benchmark</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <configuration>
+                            <!-- Exclude normal tests when running benchmarks -->
+                            <excludes>
+                                <exclude>**/*Test.java</exclude>
+                            </excludes>
+                            <includes>
+                                <include>**/BenchmarkRunner.java</include>
+                            </includes>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 
     <build>
         <plugins>
@@ -196,6 +250,11 @@
                             <groupId>org.mapstruct</groupId>
                             <artifactId>mapstruct-processor</artifactId>
                             <version>${mapstruct.version}</version>
+                        </path>
+                        <path>
+                            <groupId>org.openjdk.jmh</groupId>
+                            <artifactId>jmh-generator-annprocess</artifactId>
+                            <version>${jmh.version}</version>
                         </path>
                     </annotationProcessorPaths>
                 </configuration>

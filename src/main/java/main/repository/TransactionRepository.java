@@ -122,4 +122,20 @@ public interface TransactionRepository extends JpaRepository<Transaction, String
 
     boolean existsBySenderIdAndMerchantAndCreatedAtAfter(String senderId, String merchant, Instant after);
     
+    // Graph rebuild query
+    // It's time-bounded with JOIN FETCH to avoid N+1 when reading sender/receiver IDs.
+    // Replaces findAll() which would load the entire table into the heap.
+    // Hits idx_txn_created_at; excluded statuses (FRAUD_BLOCKED, DECLINED) are filtered in SQL.
+    @Query("""
+        SELECT t FROM Transaction t
+        JOIN FETCH t.sender
+        LEFT JOIN FETCH t.receiver
+        WHERE t.createdAt >= :since
+          AND t.status NOT IN :excluded
+        """)
+    List<Transaction> findTransactionsSince(
+        @Param("since") Instant since,
+        @Param("excluded") Collection<TransactionStatus> excluded);
+
+        
 }

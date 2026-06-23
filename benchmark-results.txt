@@ -1,0 +1,17 @@
+﻿Benchmark                                                 Mode  Cnt        Score         Error  Units
+FraudEngineBenchmark.allRules                            thrpt   20     9741.408 ±    1859.252  ops/s
+FraudEngineBenchmark.noAlerts                            thrpt   20    11131.720 ±    2221.142  ops/s
+FraudEngineBenchmark.shortCircuit                        thrpt   20    11567.062 ±     441.441  ops/s
+FraudEngineBenchmark.singleCritical                      thrpt   20    12277.235 ±     785.919  ops/s
+GraphServiceBenchmark.concurrent_readWrite_circularFlow  thrpt   20  2598521.645 ± 1031069.084  ops/s
+GraphServiceBenchmark.concurrent_reads_circularFlow      thrpt   20  6679586.135 ±  148617.126  ops/s
+GraphServiceBenchmark.concurrent_reads_nodeDegree        thrpt   20  1111012.633 ±  166296.250  ops/s
+GraphServiceBenchmark.addTransaction_merchant             avgt   20        2.589 ±       0.899  us/op
+GraphServiceBenchmark.addTransaction_p2p                  avgt   20        2.174 ±       0.354  us/op
+GraphServiceBenchmark.analyzeCircularFlow_hit             avgt   20        0.116 ±       0.014  us/op
+GraphServiceBenchmark.analyzeCircularFlow_miss            avgt   20        0.989 ±       0.090  us/op
+GraphServiceBenchmark.analyzeCluster_hit                  avgt   20        0.215 ±       0.018  us/op
+GraphServiceBenchmark.analyzeCluster_miss                 avgt   20        0.005 ±       0.001  us/op
+GraphServiceBenchmark.analyzeNodeDegree_hub               avgt   20        3.334 ±       0.403  us/op
+GraphServiceBenchmark.rebuildGraph_large                  avgt   20      944.795 ±     111.073  us/op
+GraphServiceBenchmark.rebuildGraph_small                  avgt   20      109.807 ±       8.019  us/op
