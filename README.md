@@ -1,11 +1,27 @@
-# Real-Time Payment Fraud Detection System
+# tx-sieve: Real-Time Payment Fraud Detection System
 
-Most backend projects I find online stop where the interesting problems
-start. This one doesn't.
+Fraud detection at transaction volume is an unsolved engineering problem 
+for most backend systems. Rule-based checks miss coordinated patterns. 
+Graph traversal on every payment saturates CPU. ML models add latency 
+that breaks real-time guarantees.
 
-Payment fraud detection: high volume, real-time decisions, JWT security,
-graph-based analysis, ML integration. Built phase by phase, design
-decisions documented as they're made.
+This platform addresses all three: a cost-sensitive rule pipeline that 
+short-circuits on early signals, structural graph anomaly detection on a 
+precomputed volatile transaction graph — circular flow, hub-node degree, 
+connected-component cluster analysis — and a GradientBoosting ML 
+microservice decoupled behind a circuit breaker. Transactions are 
+processed asynchronously through a bounded queue with explicit 
+back-pressure, fraud signals broadcast in real time over WebSocket, 
+every rule trigger and analysis latency exposed as a Micrometer metric.
+
+The backend is grounded in rigorous data modeling: normalized JPA entities, 
+custom JPQL fraud queries with index-aware filtering, DTO separation across 
+every API boundary, typed exception handling, and stateless JWT 
+authentication with role-based access control. Designed for PostgreSQL 
+in production with H2 for zero-dependency local development.
+
+Built phase by phase, benchmarked with JMH, and documented at every step. 
+Every architectural decision has a reason.
 
 ---
 
