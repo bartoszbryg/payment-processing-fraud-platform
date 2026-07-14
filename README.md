@@ -3,8 +3,8 @@
 Most backend projects I find online stop where the interesting problems
 start. This one doesn't.
 
-Payment fraud detection: high volume, real-time decisions, JWT security,
-graph-based analysis, ML integration. Built phase by phase, design
+Payment fraud detection: high volume, asynchronous decisions, JWT security,
+rule-based and graph-based analysis. Built phase by phase, design
 decisions documented as they're made.
 
 ---
@@ -16,7 +16,7 @@ decisions documented as they're made.
 A user submits a payment. The system decides in real time whether it's
 fraud. The decision happens in milliseconds, not minutes.
 
-- If fraud: block the transaction, save an alert, notify analysts instantly
+- If fraud: block the transaction and save an alert
 - If clean: process it, transfer the balance
 
 That's it. Everything in this repo exists to make that one flow work
@@ -32,7 +32,8 @@ HTTP thread while analyzing fraud. Needs a queue and async workers.
 
 **Real-time** — fraud windows are minutes wide. A daily email report
 is useless. Analysts need a live dashboard that updates the moment
-fraud is detected. That means WebSocket push, not polling.
+fraud is detected. WebSocket push is planned for the next phase; the
+current phase persists alerts and exposes dashboard stats.
 
 **Secure** — this is a banking system. Every endpoint except login
 requires authentication. JWT tokens, stateless, role-based access.
@@ -55,7 +56,7 @@ Java Spring Boot
 └── JWT security layer
 └── Fraud detection engine (rule-based + graph-based)
 └── Bounded queue + worker thread pool
-└── WebSocket broker (real-time analyst alerts)
+└── WebSocket broker (Phase 11, real-time analyst alerts)
 └── Prometheus metrics + Spring Actuator
 
 Python FastAPI (Phase 15)
@@ -70,14 +71,14 @@ Docker Compose (Phase 17)
 └── Health checks before Java starts
 ```
 
-Java handles transactions, security, and real-time alerting.
-Python handles statistical anomaly detection.
-They communicate over HTTP. If Python goes down, Java keeps running
-with rule-based scoring only. Loose coupling by design.
+Java currently handles transactions, security, fraud rules, graph analysis,
+and the async worker pipeline. Python statistical anomaly detection is a
+later phase. When it is wired in, Java will keep running with rule-based
+scoring if Python is unavailable. Loose coupling by design.
 
 ---
 
-## Architecture — The Full Picture
+## Architecture — Target Picture
 
 ```
 User submits payment (HTTP POST, JWT authenticated)
@@ -112,8 +113,8 @@ Scores accumulate (capped at 100)
         ├── score < 40   → APPROVED
         ├── score 40–69  → FLAGGED FOR REVIEW  + alert saved
         └── score ≥ 70   → BLOCKED             + alert saved
-                                                + WebSocket broadcast
-                                                + balance reversed
+                                                + WebSocket broadcast (Phase 11)
+                                                + no balance deduction
 ```
 
 ---
@@ -127,11 +128,11 @@ Scores accumulate (capped at 100)
 | **H2 (dev) / PostgreSQL (prod)** | H2 needs zero setup — the app boots with no external dependencies. Production swaps via environment variable, no code change. |
 | **LinkedBlockingQueue** | Simulates Kafka without the infrastructure. Bounded capacity means back-pressure is explicit: queue full = 503, not a crash. |
 | **JGraphT** | Rule-based scoring looks at transactions individually. A graph finds coordinated fraud — money laundering rings, mule accounts — that individual rules miss entirely. |
-| **WebSocket / STOMP** | HTTP polling adds latency and wastes connections. STOMP push delivers alerts to dashboards the instant a transaction is blocked. |
-| **Python FastAPI + GradientBoosting** | Rule-based systems catch known patterns. ML catches anomalies that don't match any written rule. Separate service so a Python crash never takes down the Java API. |
+| **WebSocket / STOMP** | Planned for Phase 11. HTTP polling adds latency and wastes connections; STOMP push will deliver alerts to dashboards the instant a transaction is blocked. |
+| **Python FastAPI + GradientBoosting** | Planned for Phase 15. Rule-based systems catch known patterns. ML catches anomalies that don't match any written rule. Separate service so a Python crash never takes down the Java API. |
 | **Micrometer + Prometheus** | Every fraud rule trigger, queue depth, and analysis duration is a metric. Fraud systems need tuning — you tune with data, not guesses. |
-| **Resilience4j circuit breaker** | If the Python ML service is slow or down, the circuit opens and Java stops trying. Requests degrade gracefully instead of piling up waiting threads. |
-| **Lombok + MapStruct** | Annotation processors — generate boilerplate at compile time, zero runtime overhead. Lombok handles getters/constructors, MapStruct handles entity↔DTO conversion. |
+| **Resilience4j circuit breaker** | Planned for the ML integration phase. If the Python ML service is slow or down, the circuit opens and Java stops trying. |
+| **Lombok + MapStruct** | Annotation processors generate boilerplate at compile time, zero runtime overhead. Lombok handles getters/constructors now; MapStruct is available if mapping grows beyond the current plain TransactionMapper. |
 | **BigDecimal for amounts** | `double` loses pennies. 0.1 + 0.2 = 0.30000000000000004 in floating point. Banks are legally liable for rounding errors. |
 
 ---
@@ -184,3 +185,4 @@ BigDecimal exists because float arithmetic is illegal in finance.
 
 Understanding *why* a design decision exists is more useful than knowing
 *how* to implement it. This project documents both.
+
