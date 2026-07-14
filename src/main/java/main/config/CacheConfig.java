@@ -29,7 +29,7 @@ public class CacheConfig {
 
     @Bean
     public CacheManager cacheManager() {
-        CaffeineCacheManager manager = new CaffeineCacheManager("merchantBlacklist");
+        CaffeineCacheManager manager = new CaffeineCacheManager("merchantBlacklist", "dashboardStats");
 
         manager.setCaffeine(Caffeine.newBuilder()
             .expireAfterWrite(10, TimeUnit.MINUTES)
