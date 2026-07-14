@@ -152,13 +152,13 @@ Alerts are only persisted when the list is non-empty. For `LOW` and `MEDIUM` res
 
 ## Test Suite — `TransactionWorkerPoolTest`
 
-37 tests across three nested classes. No Spring context. All dependencies are mocked with Mockito.
+15 tests across two nested classes. No Spring context. All dependencies are mocked with Mockito.
 
 ### `PoolConfigurationTests` — 3 tests
 
 Verify that the pool reports the configured size, starts with zero processed, and reports a non-negative active worker count. These are existence checks that confirm the pool initialises correctly before any transaction is submitted.
 
-### `ProcessTransactionTests` — 23 tests
+### `ProcessTransactionTests` — 12 tests
 
 Cover every outcome path through `processTransaction`. Notable cases:
 
@@ -174,13 +174,9 @@ Cover every outcome path through `processTransaction`. Notable cases:
 
 `userRiskProfileUpdated_onEveryProcessedTransaction` — verifies `userRepository.updateRiskProfile()` is called with the correct userId and score on every processed transaction.
 
-The `@BeforeEach` stub for `mlFraudScoringService.score()` uses `lenient()`:
-
-```java
-lenient().when(mlFraudScoringService.score(any())).thenReturn(Optional.empty());
-```
-
-This is required because Mockito strict mode would flag the stub as unnecessary for tests that return early before analysis runs (the missing-transaction and already-processed cases). `lenient()` suppresses the `UnnecessaryStubbingException` for those cases while still providing the default return value for tests that do reach the analysis path. This became irrelevant after ML was removed from the worker, but the test still passes cleanly.
+There is no `MlFraudScoringService` mock in this test. That is intentional:
+ML is not wired into worker decisions until it becomes an explainable
+`FraudRule` in a later phase.
 
 ---
 

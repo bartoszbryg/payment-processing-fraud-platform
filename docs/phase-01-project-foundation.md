@@ -9,7 +9,7 @@ Get Spring Boot compiling and serving HTTP on port 8080. No business logic yet.
 ```
 ├── pom.xml                          ← Maven project descriptor (project root, always)
 ├── docs/
-│   └── phase-1-project-foundation.md
+│   └── phase-01-project-foundation.md
 └── src/
     ├── main/
     │   ├── java/main/application/

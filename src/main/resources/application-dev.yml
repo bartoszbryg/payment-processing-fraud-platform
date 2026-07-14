@@ -63,10 +63,10 @@ management:
 ml:
   service:
     url: ${ML_SERVICE_URL:http://localhost:8000}
-    enabled: ${ML_SERVICE_ENABLED:true}
+    enabled: ${ML_SERVICE_ENABLED:false}
 
 logging:
   level:
-    com.frauddetection: DEBUG
+    main: DEBUG
     org.springframework.security: WARN
     org.hibernate: WARN

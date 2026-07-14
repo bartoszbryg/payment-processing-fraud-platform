@@ -55,7 +55,7 @@ fraud:
 # ML Fraud Scoring Microservice
 ml:
   service:
-    enabled: true
+    enabled: false
 
 # App metadata
 info:

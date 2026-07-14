@@ -51,11 +51,11 @@ management:
 # ML Fraud Scoring Microservice
 ml:
   service:
-    url: ${ML_SERVICE_URL}
-    enabled: ${ML_SERVICE_ENABLED:true}
+    url: ${ML_SERVICE_URL:http://localhost:8000}
+    enabled: ${ML_SERVICE_ENABLED:false}
 
 logging:
   level:
-    com.frauddetection: INFO
+    main: INFO
     org.springframework.security: WARN
     org.hibernate: ERROR

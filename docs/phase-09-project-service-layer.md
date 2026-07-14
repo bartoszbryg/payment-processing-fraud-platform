@@ -99,7 +99,7 @@ TransactionSynchronizationManager.registerSynchronization(new TransactionSynchro
 
 The queue-full recovery path and why `requiresNewTemplate` is required are covered in the fixes section below.
 
-The response returns `TransactionStatus.PENDING` and `fraudScore: 0.0`. The actual score comes later, when the worker finishes analysis. Callers poll `GET /payments/{id}` or subscribe to WebSocket alerts to see the final outcome.
+The response returns `TransactionStatus.PENDING` and `fraudScore: 0.0`. The actual score comes later, when the worker finishes analysis. In the current phase callers poll `GET /payments/{id}` to see the final outcome. WebSocket alert push is added later.
 
 ---
 
