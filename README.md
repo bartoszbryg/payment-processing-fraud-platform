@@ -132,7 +132,7 @@ Scores accumulate (capped at 100)
 | **Python FastAPI + GradientBoosting** | Planned for Phase 15. Rule-based systems catch known patterns. ML catches anomalies that don't match any written rule. Separate service so a Python crash never takes down the Java API. |
 | **Micrometer + Prometheus** | Every fraud rule trigger, queue depth, and analysis duration is a metric. Fraud systems need tuning — you tune with data, not guesses. |
 | **Resilience4j circuit breaker** | Planned for the ML integration phase. If the Python ML service is slow or down, the circuit opens and Java stops trying. |
-| **Lombok + MapStruct** | Annotation processors generate boilerplate at compile time, zero runtime overhead. Lombok handles getters/constructors now; MapStruct is available if mapping grows beyond the current plain TransactionMapper. |
+| **Lombok + MapStruct** | Annotation processors generate boilerplate at compile time, zero runtime overhead. Lombok handles getters/constructors now; MapStruct is available if mapping grows beyond the current plain `TransactionMapper`. |
 | **BigDecimal for amounts** | `double` loses pennies. 0.1 + 0.2 = 0.30000000000000004 in floating point. Banks are legally liable for rounding errors. |
 
 ---
