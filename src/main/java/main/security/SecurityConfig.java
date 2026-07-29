@@ -46,6 +46,10 @@ public class SecurityConfig {
                 .requestMatchers("/actuator/health").permitAll()
                 // OpenAPI docs (disabled in prod via springdoc.swagger-ui.enabled=false)
                 .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                // SockJS handshake/polling needs plain HTTP access before a STOMP session
+                // exists. Real auth happens per-frame in StompAuthChannelInterceptor and is
+                // enforced by WebSocketSecurityConfig.
+                .requestMatchers("/ws/**").permitAll()
                 .anyRequest().authenticated()
             )
             // Allow H2 console iframes in dev

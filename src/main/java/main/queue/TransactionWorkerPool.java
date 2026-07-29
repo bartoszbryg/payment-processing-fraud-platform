@@ -8,13 +8,17 @@ import main.application.states.TransactionStatus;
 import main.databaseModel.FraudAlert;
 import main.databaseModel.Transaction;
 import main.fraud.FraudDetectionEngine;
+import main.fraud.MlFraudEnrichmentService;
 import main.fraud.graph.TransactionGraphService;
 import main.repository.FraudAlertRepository;
 import main.repository.TransactionRepository;
 import main.repository.UserRepository;
+import main.websocket.FraudAlertBroadcaster;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Instant;
@@ -38,6 +42,8 @@ public class TransactionWorkerPool {
     private final FraudAlertRepository fraudAlertRepository;
     private final UserRepository userRepository;
     private final TransactionGraphService graphService;
+    private final FraudAlertBroadcaster fraudAlertBroadcaster;
+    private final MlFraudEnrichmentService mlFraudEnrichmentService;
     private final TransactionTemplate transactionTemplate;
     private final ThreadPoolExecutor executor;
     private final AtomicInteger activeWorkers = new AtomicInteger(0);
@@ -51,6 +57,8 @@ public class TransactionWorkerPool {
             FraudAlertRepository fraudAlertRepository,
             UserRepository userRepository,
             TransactionGraphService graphService,
+            FraudAlertBroadcaster fraudAlertBroadcaster,
+            MlFraudEnrichmentService mlFraudEnrichmentService,
             TransactionTemplate transactionTemplate,
             @Value("${worker.pool.size:4}") int poolSize) {
         this.queue = queue;
@@ -59,6 +67,8 @@ public class TransactionWorkerPool {
         this.fraudAlertRepository = fraudAlertRepository;
         this.userRepository = userRepository;
         this.graphService = graphService;
+        this.fraudAlertBroadcaster = fraudAlertBroadcaster;
+        this.mlFraudEnrichmentService = mlFraudEnrichmentService;
         this.transactionTemplate = transactionTemplate;
         this.executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(poolSize,
             r -> {
@@ -122,7 +132,25 @@ public class TransactionWorkerPool {
         if (transaction.getStatus() != TransactionStatus.FRAUD_BLOCKED
                 && transaction.getStatus() != TransactionStatus.DECLINED) {
             graphService.addTransaction(transaction);
+            triggerMlEnrichmentAfterCommit(transaction.getId());
         }
+    }
+
+    // ML enrichment must not start until this worker cycle's status/balance changes are
+    // actually committed - otherwise its background fetch could read stale, pre-decision
+    // state. Mirrors PaymentService.enqueueAfterCommit's afterCommit registration.
+    private void triggerMlEnrichmentAfterCommit(String transactionId) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            mlFraudEnrichmentService.enrichAfterApproval(transactionId);
+            return;
+        }
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                mlFraudEnrichmentService.enrichAfterApproval(transactionId);
+            }
+        });
     }
 
     private void applyFraudResult(
@@ -145,6 +173,12 @@ public class TransactionWorkerPool {
         transaction.setRiskLevel(result.riskLevel());
         transaction.setProcessedAt(Instant.now());
         transaction.setProcessingTimeMs((System.nanoTime() - startNs) / 1_000_000);
+
+        // Only HIGH/CRITICAL reach analyst dashboards in real time — LOW/MEDIUM would be
+        // noise on a screen meant for triage.
+        if (result.isHighRisk()) {
+            fraudAlertBroadcaster.broadcast(alerts, transaction);
+        }
 
         String senderId = transaction.getSender().getId();
         userRepository.updateRiskProfile(senderId, result.fraudScore(), result.isHighRisk());

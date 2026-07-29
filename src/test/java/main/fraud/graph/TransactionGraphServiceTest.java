@@ -256,6 +256,100 @@ class TransactionGraphServiceTest {
         }
     }
 
+    // Covers the gap analyzeCircularFlow cannot see: the transaction that itself closes a
+    // ring hasn't been added to the graph yet when it's scored (addTransaction() only runs
+    // after the verdict), so analyzeCircularFlow(sender) alone finds nothing.
+    @Nested
+    class WouldCompleteCycleTests {
+
+        @Test
+        void nullSenderOrReceiver_returnsClean() {
+            assertFalse(graphService.wouldCompleteCycle(null, "bob").suspicious());
+            assertFalse(graphService.wouldCompleteCycle("alice", null).suspicious());
+        }
+
+        @Test
+        void senderEqualsReceiver_returnsClean() {
+            assertFalse(graphService.wouldCompleteCycle("alice", "alice").suspicious());
+        }
+
+        @Test
+        void receiverNotInGraph_returnsClean() {
+            assertFalse(graphService.wouldCompleteCycle("alice", "unknown").suspicious());
+        }
+
+        @Test
+        void noPathBackToSender_returnsClean() {
+            User alice = user("alice");
+            User bob = user("bob");
+            User charlie = user("charlie");
+
+            // bob -> charlie exists, but nothing routes back to alice
+            graphService.addTransaction(p2pTxn(bob, charlie, 50.0));
+
+            GraphAnalysisResult r = graphService.wouldCompleteCycle("alice", "bob");
+
+            assertFalse(r.suspicious());
+        }
+
+        @Test
+        void directReturnPath_detectsClosingEdge() {
+            User alice = user("alice");
+            User bob = user("bob");
+
+            // bob -> alice already exists. alice -> bob (not yet added) would close a 2-cycle.
+            graphService.addTransaction(p2pTxn(bob, alice, 90.0));
+
+            GraphAnalysisResult r = graphService.wouldCompleteCycle("alice", "bob");
+
+            assertTrue(r.suspicious());
+            assertEquals("CIRCULAR_FLOW", r.signalType());
+            assertEquals(35.0, r.riskScore(), 0.001);
+        }
+
+        @Test
+        void multiHopReturnPath_detectsClosingEdge() {
+            User alice = user("alice");
+            User bob = user("bob");
+            User charlie = user("charlie");
+
+            // bob -> charlie -> alice already exist. alice -> bob would close a 3-cycle.
+            graphService.addTransaction(p2pTxn(bob, charlie, 90.0));
+            graphService.addTransaction(p2pTxn(charlie, alice, 80.0));
+
+            GraphAnalysisResult r = graphService.wouldCompleteCycle("alice", "bob");
+
+            assertTrue(r.suspicious());
+            assertEquals("CIRCULAR_FLOW", r.signalType());
+        }
+
+        @Test
+        void doesNotMutateGraph() {
+            User alice = user("alice");
+            User bob = user("bob");
+
+            graphService.addTransaction(p2pTxn(bob, alice, 90.0));
+            int edgesBefore = graphService.getGraphEdgeCount();
+
+            graphService.wouldCompleteCycle("alice", "bob");
+
+            assertEquals(edgesBefore, graphService.getGraphEdgeCount());
+        }
+
+        @Test
+        void merchantEdgesAreIgnored() {
+            User alice = user("alice");
+            User bob = user("bob");
+
+            // bob only ever paid a merchant, never routed back to alice
+            graphService.addTransaction(merchantTxn(bob, "Amazon", 50.0));
+
+            GraphAnalysisResult r = graphService.wouldCompleteCycle("alice", "bob");
+
+            assertFalse(r.suspicious());
+        }
+    }
+
     @Nested
     class NodeDegreeTests {
 
@@ -335,6 +429,95 @@ class TransactionGraphServiceTest {
             assertTrue(r.suspicious());
             assertEquals("BIDIRECTIONAL_HUB", r.signalType());
             assertEquals(20.0, r.riskScore(), 0.001);
+        }
+    }
+
+    // Covers the equivalent gap for node-degree: a transaction whose receiver is itself the
+    // counterparty that crosses a threshold hasn't been added to the graph yet at scoring
+    // time, so analyzeNodeDegree(sender) alone can't see it.
+    @Nested
+    class WouldExceedDegreeThresholdTests {
+
+        @Test
+        void nullSenderOrReceiver_returnsClean() {
+            assertFalse(graphService.wouldExceedDegreeThreshold(null, "bob").suspicious());
+            assertFalse(graphService.wouldExceedDegreeThreshold("alice", null).suspicious());
+        }
+
+        @Test
+        void senderEqualsReceiver_returnsClean() {
+            assertFalse(graphService.wouldExceedDegreeThreshold("alice", "alice").suspicious());
+        }
+
+        @Test
+        void senderNotInGraph_returnsClean() {
+            // A single new counterparty can never cross either threshold from zero.
+            assertFalse(graphService.wouldExceedDegreeThreshold("alice", "bob").suspicious());
+        }
+
+        @Test
+        void existingCounterparty_doesNotDoubleCount() {
+            User alice = user("alice");
+
+            // Exactly 50 unique counterparties - at, not over, the threshold.
+            for (int i = 0; i < 50; i++) {
+                graphService.addTransaction(p2pTxn(alice, user("peer-" + i), 10.0));
+            }
+
+            // Transacting again with an EXISTING counterparty adds no new node.
+            GraphAnalysisResult r = graphService.wouldExceedDegreeThreshold("alice", "peer-0");
+
+            assertFalse(r.suspicious());
+        }
+
+        @Test
+        void newCounterpartyPushesOverThreshold_detectsBeforeEdgeExists() {
+            User alice = user("alice");
+
+            for (int i = 0; i < 50; i++) {
+                graphService.addTransaction(p2pTxn(alice, user("peer-" + i), 10.0));
+            }
+            // Sanity check: not yet suspicious with the existing 50 alone.
+            assertFalse(graphService.analyzeNodeDegree("alice").suspicious());
+
+            // "peer-50" has never transacted with alice - this transaction would be new.
+            GraphAnalysisResult r = graphService.wouldExceedDegreeThreshold("alice", "peer-50");
+
+            assertTrue(r.suspicious());
+            assertEquals("HIGH_DEGREE_NODE", r.signalType());
+            assertEquals(30.0, r.riskScore(), 0.001);
+        }
+
+        @Test
+        void newCounterpartyPushesIntoBidirectionalHub_detectsBeforeEdgeExists() {
+            User hub = user("hub");
+
+            for (int i = 0; i < 21; i++) {
+                graphService.addTransaction(p2pTxn(user("sender-" + i), hub, 10.0));
+            }
+            for (int i = 0; i < 20; i++) {
+                graphService.addTransaction(p2pTxn(hub, user("receiver-" + i), 10.0));
+            }
+            // Sanity check: out=20 is not yet > 20, so not suspicious with these alone.
+            assertFalse(graphService.analyzeNodeDegree("hub").suspicious());
+
+            // A 21st distinct outgoing counterparty would push out to 21.
+            GraphAnalysisResult r = graphService.wouldExceedDegreeThreshold("hub", "receiver-20");
+
+            assertTrue(r.suspicious());
+            assertEquals("BIDIRECTIONAL_HUB", r.signalType());
+            assertEquals(20.0, r.riskScore(), 0.001);
+        }
+
+        @Test
+        void doesNotMutateGraph() {
+            User alice = user("alice");
+            graphService.addTransaction(p2pTxn(alice, user("bob"), 10.0));
+            int edgesBefore = graphService.getGraphEdgeCount();
+
+            graphService.wouldExceedDegreeThreshold("alice", "charlie");
+
+            assertEquals(edgesBefore, graphService.getGraphEdgeCount());
         }
     }
 
@@ -450,6 +633,18 @@ class TransactionGraphServiceTest {
                 .build();
         }
 
+        private Transaction pendingP2pTxn(User sender, User receiver) {
+            return Transaction.builder()
+                .id("txn-" + System.nanoTime())
+                .sender(sender)
+                .receiver(receiver)
+                .amount(new BigDecimal("50.00"))
+                .status(TransactionStatus.PENDING)
+                .location("New York")
+                .country("US")
+                .build();
+        }
+
         @Test
         void noSignals_noAlerts() {
             User alice = user("alice");
@@ -523,6 +718,113 @@ class TransactionGraphServiceTest {
             List<FraudAlert> alerts = graphFraudRule.evaluate(txn);
 
             assertTrue(alerts.isEmpty());
+        }
+
+        // The gap this closes: the transaction being evaluated here is alice -> bob, and
+        // that edge has NOT been added to the graph yet (evaluate() runs before
+        // TransactionWorkerPool ever calls addTransaction()). Without wouldCompleteCycle,
+        // analyzeCircularFlow("alice") alone would find nothing and this would score clean.
+        @Test
+        void p2pTransactionClosingCycle_producesAlertBeforeEdgeExists() {
+            User alice = user("alice");
+            User bob = user("bob");
+
+            // Only the return leg exists so far; alice -> bob (this transaction) is what
+            // would close the ring, and it is deliberately not added to the graph here.
+            graphService.addTransaction(p2pTxn(bob, alice, 90.0));
+
+            List<FraudAlert> alerts = graphFraudRule.evaluate(pendingP2pTxn(alice, bob));
+
+            assertTrue(alerts.stream()
+                .anyMatch(a -> a.getRuleType() == FraudRuleType.GRAPH_CIRCULAR_FLOW));
+        }
+
+        @Test
+        void merchantTransaction_neverChecksWouldCompleteCycle() {
+            User alice = user("alice");
+            User bob = user("bob");
+
+            // Same ring-closing graph state as above, but this transaction is a merchant
+            // payment (no receiver) — it cannot close a user cycle, so no alert.
+            graphService.addTransaction(p2pTxn(bob, alice, 90.0));
+
+            List<FraudAlert> alerts = graphFraudRule.evaluate(txnForUser(alice));
+
+            assertTrue(alerts.stream()
+                .noneMatch(a -> a.getRuleType() == FraudRuleType.GRAPH_CIRCULAR_FLOW));
+        }
+
+        // The gap this closes: alice -> peer-50 (this transaction) is what pushes alice past
+        // 50 unique counterparties, and that edge has NOT been added to the graph yet.
+        // Without wouldExceedDegreeThreshold, analyzeNodeDegree("alice") alone would still
+        // only see 50 (not > 50) and this would score clean.
+        @Test
+        void p2pTransactionCrossingDegreeThreshold_producesAlertBeforeEdgeExists() {
+            User alice = user("alice");
+
+            for (int i = 0; i < 50; i++) {
+                graphService.addTransaction(p2pTxn(alice, user("peer-" + i), 10.0));
+            }
+
+            List<FraudAlert> alerts = graphFraudRule.evaluate(pendingP2pTxn(alice, user("peer-50")));
+
+            assertTrue(alerts.stream()
+                .anyMatch(a -> a.getRuleType() == FraudRuleType.GRAPH_HIGH_DEGREE_NODE));
+        }
+
+        @Test
+        void merchantTransaction_neverChecksWouldExceedDegreeThreshold() {
+            User alice = user("alice");
+
+            // Same near-threshold graph state as above, but this transaction is a merchant
+            // payment — merchant edges never count toward user counterparty degree, so the
+            // plain analyzeNodeDegree(alice) applies and correctly stays clean at 50.
+            for (int i = 0; i < 50; i++) {
+                graphService.addTransaction(p2pTxn(alice, user("peer-" + i), 10.0));
+            }
+
+            List<FraudAlert> alerts = graphFraudRule.evaluate(txnForUser(alice));
+
+            assertTrue(alerts.stream()
+                .noneMatch(a -> a.getRuleType() == FraudRuleType.GRAPH_HIGH_DEGREE_NODE));
+        }
+
+        @Test
+        void p2pTransactionToExistingCounterparty_doesNotDoubleCount() {
+            User alice = user("alice");
+            User existingPeer = user("peer-0");
+
+            for (int i = 0; i < 50; i++) {
+                graphService.addTransaction(p2pTxn(alice, user("peer-" + i), 10.0));
+            }
+
+            // Transacting again with an already-known counterparty adds no new node.
+            List<FraudAlert> alerts = graphFraudRule.evaluate(pendingP2pTxn(alice, existingPeer));
+
+            assertTrue(alerts.stream()
+                .noneMatch(a -> a.getRuleType() == FraudRuleType.GRAPH_HIGH_DEGREE_NODE));
+        }
+
+        // analyzeCircularFlow(alice) and wouldCompleteCycle(alice, bob) both notice the same
+        // alice<->bob ring here - two mechanisms flagging one problem, not two rings. Without
+        // collapsing by rule type this produced two GRAPH_CIRCULAR_FLOW alerts and double the
+        // score (70.0 instead of 35.0) for a single ring.
+        @Test
+        void duplicateCircularFlowSignals_collapseToSingleAlert() {
+            User alice = user("alice");
+            User bob = user("bob");
+
+            graphService.addTransaction(p2pTxn(alice, bob, 100.0));
+            graphService.addTransaction(p2pTxn(bob, alice, 90.0));
+
+            List<FraudAlert> alerts = graphFraudRule.evaluate(pendingP2pTxn(alice, bob));
+
+            List<FraudAlert> circularFlowAlerts = alerts.stream()
+                .filter(a -> a.getRuleType() == FraudRuleType.GRAPH_CIRCULAR_FLOW)
+                .toList();
+
+            assertEquals(1, circularFlowAlerts.size());
+            assertEquals(35.0, circularFlowAlerts.get(0).getScoreContribution(), 0.001);
         }
 
         @Test

@@ -40,10 +40,29 @@ public interface UserRepository extends JpaRepository<User, String> {
     int deductBalance(@Param("userId") String userId, @Param("amount") BigDecimal amount);
 
     // After the fraud engine scores a transaction it calls this once to persist the new risk profile.
+    // Plain overwrite is correct here: this is always called synchronously, in-order, with the
+    // fraud engine's fresh, complete assessment of the current transaction.
     // Returns rows affected (1 = updated, 0 = user not found / was deleted between score and write).
     @Modifying(clearAutomatically = true)
     @Query("UPDATE User u SET u.riskScore = :score, u.flagged = :flagged WHERE u.id = :userId")
     int updateRiskProfile(@Param("userId") String userId, @Param("score") double score, @Param("flagged") boolean flagged);
+
+    // Used by async, out-of-order enrichment (MlFraudEnrichmentService) instead of
+    // updateRiskProfile. A background ML call can resolve well after later transactions from
+    // the same user have already overwritten riskScore with their own fresh assessment, with
+    // no ordering guarantee either way - a plain overwrite here could silently clobber a
+    // higher, more complete rules+graph score with a late, ML-only number. GREATEST/OR only
+    // ever escalates: the stored score can never end up lower and flagged can never flip back
+    // to false because of this call, regardless of when it lands.
+    // Returns rows affected (1 = updated, 0 = user not found / was deleted between score and write).
+    @Modifying(clearAutomatically = true)
+    @Query("""
+        UPDATE User u SET
+            u.riskScore = CASE WHEN :score > u.riskScore THEN :score ELSE u.riskScore END,
+            u.flagged = CASE WHEN :flagged = true THEN true ELSE u.flagged END
+        WHERE u.id = :userId
+        """)
+    int raiseRiskProfile(@Param("userId") String userId, @Param("score") double score, @Param("flagged") boolean flagged);
 
     // Called by the email verification flow when the user clicks the confirmation link
     // Returns 1 if updated, 0 if the userId no longer exists

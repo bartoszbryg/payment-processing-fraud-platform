@@ -56,6 +56,10 @@ fraud:
 ml:
   service:
     enabled: false
+    # Post-approval enrichment (MlFraudEnrichmentService) creates a FraudAlert when the
+    # ML fraud probability is at or above this. Matches the README's documented
+    # "MlFraudRule Python model probability >= 0.4" threshold.
+    suspicion-threshold: 0.4
 
 # App metadata
 info:

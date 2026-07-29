@@ -7,10 +7,12 @@ import main.databaseModel.FraudAlert;
 import main.databaseModel.Transaction;
 import main.databaseModel.User;
 import main.fraud.FraudDetectionEngine;
+import main.fraud.MlFraudEnrichmentService;
 import main.fraud.graph.TransactionGraphService;
 import main.repository.FraudAlertRepository;
 import main.repository.TransactionRepository;
 import main.repository.UserRepository;
+import main.websocket.FraudAlertBroadcaster;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -36,6 +38,8 @@ class TransactionWorkerPoolTest {
     @Mock FraudAlertRepository fraudAlertRepository;
     @Mock UserRepository userRepository;
     @Mock TransactionGraphService graphService;
+    @Mock FraudAlertBroadcaster fraudAlertBroadcaster;
+    @Mock MlFraudEnrichmentService mlFraudEnrichmentService;
     @Mock TransactionTemplate transactionTemplate;
 
     TransactionWorkerPool workerPool;
@@ -49,6 +53,8 @@ class TransactionWorkerPoolTest {
             fraudAlertRepository,
             userRepository,
             graphService,
+            fraudAlertBroadcaster,
+            mlFraudEnrichmentService,
             transactionTemplate,
             4);
     }
@@ -109,6 +115,8 @@ class TransactionWorkerPoolTest {
                 fraudAlertRepository,
                 userRepository,
                 graphService,
+                fraudAlertBroadcaster,
+                mlFraudEnrichmentService,
                 transactionTemplate,
                 6);
 
@@ -148,6 +156,8 @@ class TransactionWorkerPoolTest {
             verify(userRepository).deductBalance("user-001", new BigDecimal("100.00"));
             verify(transactionRepository).save(transaction);
             verify(graphService).addTransaction(transaction);
+            verify(fraudAlertBroadcaster, never()).broadcast(any(), any());
+            verify(mlFraudEnrichmentService).enrichAfterApproval("txn-001");
         }
 
         @Test
@@ -165,6 +175,8 @@ class TransactionWorkerPoolTest {
             verify(userRepository, never()).deductBalance(anyString(), any());
             verify(transactionRepository).save(transaction);
             verify(graphService).addTransaction(transaction);
+            verify(fraudAlertBroadcaster).broadcast(List.of(alert), transaction);
+            verify(mlFraudEnrichmentService).enrichAfterApproval("txn-002");
         }
 
         @Test
@@ -182,6 +194,8 @@ class TransactionWorkerPoolTest {
             verify(fraudAlertRepository).saveAll(List.of(alert));
             verify(userRepository, never()).deductBalance(anyString(), any());
             verify(graphService, never()).addTransaction(transaction);
+            verify(fraudAlertBroadcaster).broadcast(List.of(alert), transaction);
+            verify(mlFraudEnrichmentService, never()).enrichAfterApproval(anyString());
         }
 
         @Test
@@ -196,6 +210,7 @@ class TransactionWorkerPoolTest {
             assertEquals(TransactionStatus.DECLINED, transaction.getStatus());
             assertTrue(transaction.getDeclineReason().contains("Insufficient balance"));
             verify(graphService, never()).addTransaction(transaction);
+            verify(mlFraudEnrichmentService, never()).enrichAfterApproval(anyString());
         }
 
         @Test
@@ -247,6 +262,7 @@ class TransactionWorkerPoolTest {
             assertEquals(TransactionStatus.APPROVED, transaction.getStatus());
             verify(userRepository).deductBalance("user-001", new BigDecimal("100.00"));
             verify(graphService).addTransaction(transaction);
+            verify(fraudAlertBroadcaster, never()).broadcast(any(), any());
         }
 
         @Test

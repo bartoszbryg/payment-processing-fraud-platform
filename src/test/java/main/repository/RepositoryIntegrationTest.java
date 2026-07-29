@@ -136,6 +136,51 @@ public class RepositoryIntegrationTest {
     }
 
     @Test
+    void updateRiskProfile_overwritesEvenWithLowerScore() {
+        // Plain overwrite semantics: this is what raiseRiskProfile exists to NOT do.
+        userRepository.updateRiskProfile(alice.getId(), 90.0, true);
+
+        userRepository.updateRiskProfile(alice.getId(), 10.0, false);
+
+        User result = userRepository.findById(alice.getId()).orElseThrow();
+        assertEquals(10.0, result.getRiskScore());
+        assertFalse(result.isFlagged());
+    }
+
+    @Test
+    void raiseRiskProfile_higherScoreWins() {
+        assertEquals(1, userRepository.raiseRiskProfile(alice.getId(), 90.0, true));
+        assertEquals(0, userRepository.raiseRiskProfile("non-existent-id", 50.0, false));
+
+        User result = userRepository.findById(alice.getId()).orElseThrow();
+        assertEquals(90.0, result.getRiskScore());
+        assertTrue(result.isFlagged());
+    }
+
+    @Test
+    void raiseRiskProfile_neverLowersAnAlreadyHigherScore() {
+        userRepository.updateRiskProfile(alice.getId(), 95.0, true);
+
+        // A late, lower-severity signal (e.g. async ML enrichment) must not clobber it.
+        userRepository.raiseRiskProfile(alice.getId(), 20.0, false);
+
+        User result = userRepository.findById(alice.getId()).orElseThrow();
+        assertEquals(95.0, result.getRiskScore());
+        assertTrue(result.isFlagged());
+    }
+
+    @Test
+    void raiseRiskProfile_stillRaisesALowerExistingScore() {
+        userRepository.updateRiskProfile(alice.getId(), 15.0, false);
+
+        userRepository.raiseRiskProfile(alice.getId(), 60.0, true);
+
+        User result = userRepository.findById(alice.getId()).orElseThrow();
+        assertEquals(60.0, result.getRiskScore());
+        assertTrue(result.isFlagged());
+    }
+
+    @Test
     void markEmailVerified() {
         assertFalse(userRepository.findById(alice.getId()).orElseThrow().isEmailVerified());
 

@@ -186,8 +186,18 @@ public class TransactionGraphService {
             }
         }
 
-        while (!queue.isEmpty()) {
+        // Bounded on nodes expanded (dequeued), not nodes seen: a hub with a large direct
+        // out-degree already adds more than MAX_CIRCULAR_SEARCH_NODES entries to `visited`
+        // before this loop even starts, so capping on visited.size() would stop the BFS
+        // before it expands a single one of them — silently skipping exactly the neighbor
+        // that closes the cycle. Capping on how many nodes get dequeued still explores every
+        // direct neighbor (the cheap, useful part) and only bounds the expensive multi-hop
+        // expansion beyond that, so a dense connected component can't make every call for
+        // any node in it cost proportional to the whole component's size.
+        int expanded = 0;
+        while (!queue.isEmpty() && expanded < MAX_CIRCULAR_SEARCH_NODES) {
             String current = queue.poll();
+            expanded++;
 
             for (DefaultWeightedEdge edge : graph.outgoingEdgesOf(current)) {
                 String next = graph.getEdgeTarget(edge);
@@ -200,6 +210,80 @@ public class TransactionGraphService {
                     return GraphAnalysisResult.suspicious(
                         "CIRCULAR_FLOW",
                         "Circular money flow: funds return to originating user",
+                        35.0
+                    );
+                }
+
+                if (visited.add(next)) {
+                    queue.add(next);
+                }
+            }
+        }
+
+        return GraphAnalysisResult.clean();
+    }
+
+    /**
+     * Checks whether a not-yet-existing sender -> receiver edge would complete a cycle back
+     * to the sender, WITHOUT mutating the shared graph.
+     *
+     * Why this exists: addTransaction() only runs after TransactionWorkerPool has already
+     * decided APPROVED/FLAGGED/BLOCKED and (for APPROVED) deducted the balance. At scoring
+     * time the sender -> receiver edge for the transaction being evaluated does not exist in
+     * the graph yet, so analyzeCircularFlow(senderId) — which only walks existing outgoing
+     * edges — cannot see a cycle that this specific transaction would close. The transaction
+     * that completes a ring would otherwise sail through clean and only get caught, after the
+     * fact, by whichever transaction happens to touch that ring next.
+     *
+     * A future edge sender -> receiver closes a cycle iff receiver can already reach sender
+     * via existing user -> user edges — so this runs the same bounded BFS as
+     * analyzeCircularFlow, just started from receiver instead of sender, under a read lock
+     * only. No edge is added speculatively, so there is nothing to undo if the verdict turns
+     * out to be BLOCKED.
+     */
+    public GraphAnalysisResult wouldCompleteCycle(String senderId, String receiverId) {
+        long stamp = lock.readLock();
+        try {
+            return wouldCompleteCycleUnderLock(senderId, receiverId);
+        } finally {
+            lock.unlockRead(stamp);
+        }
+    }
+
+    private GraphAnalysisResult wouldCompleteCycleUnderLock(String senderId, String receiverId) {
+        if (senderId == null || receiverId == null || senderId.equals(receiverId)) {
+            return GraphAnalysisResult.clean();
+        }
+
+        if (!graph.containsVertex(receiverId)) {
+            return GraphAnalysisResult.clean();
+        }
+
+        Set<String> visited = new HashSet<>();
+        Queue<String> queue = new ArrayDeque<>();
+
+        visited.add(receiverId);
+        queue.add(receiverId);
+
+        // Same expanded-count bound as circularFlowUnderLock — see the comment there for why
+        // capping on visited.size() instead would let a large direct out-degree stop the
+        // search before it explores a single neighbor.
+        int expanded = 0;
+        while (!queue.isEmpty() && expanded < MAX_CIRCULAR_SEARCH_NODES) {
+            String current = queue.poll();
+            expanded++;
+
+            for (DefaultWeightedEdge edge : graph.outgoingEdgesOf(current)) {
+                String next = graph.getEdgeTarget(edge);
+
+                if (!isUserNode(next)) {
+                    continue;
+                }
+
+                if (next.equals(senderId)) {
+                    return GraphAnalysisResult.suspicious(
+                        "CIRCULAR_FLOW",
+                        "This transaction would complete a circular money flow back to the sender",
                         35.0
                     );
                 }
@@ -272,6 +356,90 @@ public class TransactionGraphService {
             return GraphAnalysisResult.suspicious(
                 "BIDIRECTIONAL_HUB",
                 String.format("Hub behaviour: incoming counterparties=%d, outgoing counterparties=%d", in, out),
+                20.0
+            );
+        }
+
+        return GraphAnalysisResult.clean();
+    }
+
+    /**
+     * Checks whether this not-yet-existing sender -> receiver edge would itself push the
+     * sender's unique-counterparty count past HIGH_DEGREE_NODE or BIDIRECTIONAL_HUB,
+     * WITHOUT mutating the shared graph.
+     *
+     * Same gap as wouldCompleteCycle: addTransaction() only runs after the verdict is
+     * decided, so analyzeNodeDegree(sender) alone counts only pre-existing counterparties —
+     * if receiver is new to sender, it cannot see that this transaction is itself the one
+     * that crosses the threshold. Used in place of analyzeNodeDegree for P2P transactions;
+     * when receiver is already a known counterparty, adding it to the simulated set is a
+     * no-op and this returns the same verdict analyzeNodeDegree would.
+     */
+    public GraphAnalysisResult wouldExceedDegreeThreshold(String senderId, String receiverId) {
+        long stamp = lock.readLock();
+        try {
+            return wouldExceedDegreeThresholdUnderLock(senderId, receiverId);
+        } finally {
+            lock.unlockRead(stamp);
+        }
+    }
+
+    private GraphAnalysisResult wouldExceedDegreeThresholdUnderLock(String senderId, String receiverId) {
+        if (senderId == null || receiverId == null || senderId.equals(receiverId)) {
+            return GraphAnalysisResult.clean();
+        }
+
+        // No prior edges at all — a single new counterparty can't cross either threshold.
+        if (!graph.containsVertex(senderId)) {
+            return GraphAnalysisResult.clean();
+        }
+
+        Set<String> outgoingUsers = new HashSet<>();
+        Set<String> incomingUsers = new HashSet<>();
+
+        for (DefaultWeightedEdge edge : graph.outgoingEdgesOf(senderId)) {
+            String target = graph.getEdgeTarget(edge);
+
+            if (isUserNode(target) && !target.equals(senderId)) {
+                outgoingUsers.add(target);
+            }
+        }
+
+        for (DefaultWeightedEdge edge : graph.incomingEdgesOf(senderId)) {
+            String source = graph.getEdgeSource(edge);
+
+            if (isUserNode(source) && !source.equals(senderId)) {
+                incomingUsers.add(source);
+            }
+        }
+
+        // Simulate the not-yet-existing edge in the local copy only — a no-op if receiver
+        // is already a known counterparty.
+        outgoingUsers.add(receiverId);
+
+        int out = outgoingUsers.size();
+        int in = incomingUsers.size();
+
+        Set<String> allCounterparties = new HashSet<>(outgoingUsers);
+        allCounterparties.addAll(incomingUsers);
+
+        int totalUnique = allCounterparties.size();
+
+        if (totalUnique > 50) {
+            return GraphAnalysisResult.suspicious(
+                "HIGH_DEGREE_NODE",
+                String.format(
+                    "This transaction would push %s to %d unique counterparties — potential money mule",
+                    senderId, totalUnique),
+                30.0
+            );
+        }
+
+        if (in > 20 && out > 20) {
+            return GraphAnalysisResult.suspicious(
+                "BIDIRECTIONAL_HUB",
+                String.format(
+                    "This transaction would create hub behaviour: incoming=%d, outgoing=%d", in, out),
                 20.0
             );
         }

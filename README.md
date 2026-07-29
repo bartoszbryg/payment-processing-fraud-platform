@@ -156,7 +156,7 @@ have the project configured.
 | **8** ✅ | Fraud engine: `FraudRule` interface, 5 rules, graph analysis, orchestrator | [docs](docs/phase-08-project-fraud-detection-engine.md) |
 | **9** ✅ | Services: `AuthService`, `UserService`, `PaymentService`, `FraudAlertService`, `DashboardService`, `MlFraudScoringService`, `TransactionMapper` | [docs](docs/phase-09-project-service-layer.md) |
 | **10** ✅ | Queue + worker pool: `TransactionQueue`, `TransactionWorkerPool`, fraud outcome routing | [docs](docs/phase-10-project-queue-worker-pool.md) |
-| **11** | WebSocket / STOMP real-time alert broadcast | |
+| **11** ✅ | WebSocket / STOMP real-time alert broadcast | [docs](docs/phase-11-project-websocket-broadcasting.md) |
 | **12** | Spring config classes: security, WebSocket, cache, async, OpenAPI | |
 | **13** | `DataSeeder` — demo data on startup | |
 | **14** | REST controllers — thin layer, no business logic | |
