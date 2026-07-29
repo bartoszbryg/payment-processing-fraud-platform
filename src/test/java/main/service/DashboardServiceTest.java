@@ -35,11 +35,12 @@ class DashboardServiceTest {
     @Mock TransactionWorkerPool workerPool;
 
     DashboardService dashboardService;
+    DashboardStatsCache dashboardStatsCache;
 
     @BeforeEach
     void setup() {
-        dashboardService = new DashboardService(
-            transactionRepository, fraudAlertRepository, transactionQueue, workerPool);
+        dashboardStatsCache = new DashboardStatsCache(transactionRepository, fraudAlertRepository);
+        dashboardService = new DashboardService(dashboardStatsCache, transactionQueue, workerPool);
     }
 
     private void stubStatusPage(TransactionStatus status, long count) {

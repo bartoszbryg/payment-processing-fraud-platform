@@ -196,6 +196,45 @@ class FraudAlertServiceTest {
         }
     }
 
+    // getMostRecentAlerts
+
+    @Nested
+    class GetMostRecentAlertsTests {
+
+        @Test
+        void returnsAlertsMappedToResponse() {
+            Page<FraudAlert> page = new PageImpl<>(List.of(
+                alert("a1", "user-001", false),
+                alert("a2", "user-002", true)));
+            when(fraudAlertRepository.findAllByOrderByCreatedAtDesc(PageRequest.of(0, 5)))
+                .thenReturn(page);
+
+            List<FraudAlertResponse> result = fraudAlertService.getMostRecentAlerts(5);
+
+            assertEquals(2, result.size());
+            assertEquals("a1", result.get(0).getId());
+            assertEquals("a2", result.get(1).getId());
+        }
+
+        @Test
+        void limitIsPassedThroughAsPageSize() {
+            when(fraudAlertRepository.findAllByOrderByCreatedAtDesc(PageRequest.of(0, 10)))
+                .thenReturn(Page.empty());
+
+            fraudAlertService.getMostRecentAlerts(10);
+
+            verify(fraudAlertRepository).findAllByOrderByCreatedAtDesc(PageRequest.of(0, 10));
+        }
+
+        @Test
+        void noAlerts_returnsEmptyList() {
+            when(fraudAlertRepository.findAllByOrderByCreatedAtDesc(PageRequest.of(0, 5)))
+                .thenReturn(Page.empty());
+
+            assertTrue(fraudAlertService.getMostRecentAlerts(5).isEmpty());
+        }
+    }
+
     // resolveAlert
 
     @Nested

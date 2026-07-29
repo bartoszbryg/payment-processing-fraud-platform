@@ -28,6 +28,12 @@ public interface FraudAlertRepository extends JpaRepository<FraudAlert, String> 
     // Never call from a user-facing endpoint - use findByUserIdAndResolved for that
     Page<FraudAlert> findAllByResolved(boolean resolved, Pageable pageable);
 
+    // Most recent alerts across all users, newest first - dashboard "live" initial page load.
+    // NOTE: created_at has no standalone index (only the composite idx_alert_resolved_created,
+    // which won't help an unfiltered ORDER BY created_at). Fine at current data volumes; revisit
+    // with a dedicated index if this table grows large enough for the sort to show up in profiling.
+    Page<FraudAlert> findAllByOrderByCreatedAtDesc(Pageable pageable);
+
     // User-scoped: only this user's resolved/unresolved alerts
     Page<FraudAlert> findByUserIdAndResolved(String userId, boolean resolved, Pageable pageable);
 

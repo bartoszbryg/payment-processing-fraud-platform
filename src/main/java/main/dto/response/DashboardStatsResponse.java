@@ -12,7 +12,7 @@ import java.util.Map;
     to avoid loading thousands of records into memory.
 */
 @Data
-@Builder
+@Builder(toBuilder = true)
 public class DashboardStatsResponse {
     private long totalTransactions;
     private long approvedTransactions;

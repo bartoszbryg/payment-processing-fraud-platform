@@ -6,6 +6,7 @@ import main.dto.response.FraudAlertResponse;
 import main.exception.ResourceNotFoundException;
 import main.repository.FraudAlertRepository;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,6 +37,16 @@ public class FraudAlertService {
     @Transactional(readOnly = true)
     public Page<FraudAlertResponse> getUnresolvedAlerts(Pageable pageable) {
         return fraudAlertRepository.findAllByResolved(false, pageable).map(this::toResponse);
+    }
+
+    // Dashboard "live" section, initial page load only - ongoing updates come from
+    // FraudAlertBroadcaster over /topic/fraud-alerts instead of repeated polling.
+    // Deliberately uncached: an analyst resolving an alert expects it to actually be gone
+    // on the next look, and a stale "most recent" view would misreport what's actionable.
+    @Transactional(readOnly = true)
+    public List<FraudAlertResponse> getMostRecentAlerts(int limit) {
+        return fraudAlertRepository.findAllByOrderByCreatedAtDesc(PageRequest.of(0, limit))
+            .stream().map(this::toResponse).toList();
     }
 
     // Analyst tool: "show me every HIGH_AMOUNT alert fired in the last 24 hours"
